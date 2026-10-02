@@ -52,7 +52,7 @@ powershell -ExecutionPolicy Bypass -File desktop\install.ps1
 
 - 把 `FetchPictureWord.exe`、`app.ps1`、`ocr.ps1`、`README.txt`、`LICENSE.txt` 复制到 `%LocalAppData%\Programs\FetchPictureWord\`（不需要管理员权限）；
 - 在**桌面**和**开始菜单**创建「提取图片文字」快捷方式；
-- 在「设置 → 应用 → 已安装的应用」里登记一项「提取图片文字」（版本 1.0.0），可以像普通软件一样卸载；
+- 在「设置 → 应用 → 已安装的应用」里登记一项「提取图片文字」（版本 0.1.0），可以像普通软件一样卸载；
 - 想换目录可以加 `-InstallDir "D:\Apps\FetchPictureWord"`。
 
 卸载：

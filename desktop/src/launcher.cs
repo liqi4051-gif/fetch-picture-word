@@ -19,8 +19,8 @@ using System.Windows.Forms;
 [assembly: AssemblyDescription("把图片里的文字读出来（Windows 自带 OCR，离线运行）")]
 [assembly: AssemblyCompany("fetch-picture-word contributors")]
 [assembly: AssemblyCopyright("Copyright (c) 2026 fetch-picture-word contributors")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("0.1.0.0")]
+[assembly: AssemblyFileVersion("0.1.0.0")]
 
 internal static class Program
 {

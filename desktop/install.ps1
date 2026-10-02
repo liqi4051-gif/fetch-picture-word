@@ -110,7 +110,7 @@ function Install-App([string]$Path) {
     $uninstallCommand = '"' + $powershell + '" -NoProfile -ExecutionPolicy Bypass -File "' +
         (Join-Path $Path 'install.ps1') + '" -Uninstall'
     New-ItemProperty -Path $uninstallKey -Name 'DisplayName' -Value $AppName -PropertyType String -Force | Out-Null
-    New-ItemProperty -Path $uninstallKey -Name 'DisplayVersion' -Value '1.0.0' -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $uninstallKey -Name 'DisplayVersion' -Value '0.1.0' -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name 'Publisher' -Value 'fetch-picture-word' -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name 'InstallLocation' -Value $Path -PropertyType String -Force | Out-Null
     New-ItemProperty -Path $uninstallKey -Name 'DisplayIcon' -Value ($target + ',0') -PropertyType String -Force | Out-Null
