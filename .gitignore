@@ -1,0 +1,34 @@
+# 构建产物：由 desktop\build.ps1 生成（脚本从 src\ 复制过来，exe 由 csc 编译）
+# 注意：dist\README.txt 是手写的用户说明，需要跟着仓库走，所以下面单独放行
+desktop/dist/*.exe
+desktop/dist/app.ps1
+desktop/dist/ocr.ps1
+desktop/dist/LICENSE.txt
+desktop/dist/*.pdb
+
+# 自检 / 调试产物（app.ps1 -SelfTest 的输出）
+.shot/
+.shotcheck/
+*.log
+
+# 临时目录
+.tmp/
+.tmp*/
+tmp/
+temp/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+*.swp
+*~
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/

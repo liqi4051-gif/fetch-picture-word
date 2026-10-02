@@ -1,0 +1,8 @@
+interface:
+  display_name: "Fetch Picture Word"
+  short_description: "Read text out of any picture, offline, in a WeChat-style dialog"
+  default_prompt: "Use $fetch-picture-word to read the text out of this picture."
+  brand_color: "#07C160"
+
+policy:
+  allow_implicit_invocation: true

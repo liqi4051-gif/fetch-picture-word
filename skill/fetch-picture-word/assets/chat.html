@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>提取图片文字 - fetch-picture-word</title>
+    <style>
+        :root {
+            --wechat-green: #07c160;
+            --bubble-me: #95ec69;
+            --bubble-bot: #ffffff;
+            --chat-bg: #ededed;
+            --line: #dcdcdc;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            background: #f5f5f5;
+            color: #191919;
+            font: 15px/1.55 "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+        }
+
+        .phone {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 860px;
+            height: 100%;
+            background: var(--chat-bg);
+            box-shadow: 0 0 24px rgba(0, 0, 0, .08);
+            overflow: hidden;
+        }
+
+        /* ---- title bar ---- */
+        .titlebar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: none;
+            height: 56px;
+            padding: 0 14px;
+            background: #ededed;
+            border-bottom: 1px solid #d9d9d9;
+        }
+
+        .t-avatar {
+            display: grid;
+            place-items: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: var(--wechat-green);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .t-name {
+            flex: 1;
+            min-width: 0;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .t-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #6b6b6b;
+        }
+
+        .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #bdbdbd;
+        }
+
+        .dot.on {
+            background: var(--wechat-green);
+        }
+
+        .dot.bad {
+            background: #fa5151;
+        }
+
+        /* ---- messages ---- */
+        .chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 14px 20px;
+            scroll-behavior: smooth;
+        }
+
+        .row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .row.me {
+            flex-direction: row-reverse;
+        }
+
+        .avatar {
+            display: grid;
+            place-items: center;
+            flex: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 6px;
+            font-size: 16px;
+            color: #fff;
+            user-select: none;
+        }
+
+        .me .avatar {
+            background: #4c7ef3;
+        }
+
+        .bot .avatar {
+            background: var(--wechat-green);
+        }
+
+        .body {
+            max-width: min(78%, 620px);
+            min-width: 0;
+        }
+
+        .row.me .body {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .bubble {
+            position: relative;
+            padding: 10px 13px;
+            border-radius: 6px;
+            background: var(--bubble-bot);
+            box-shadow: 0 1px 1px rgba(0, 0, 0, .05);
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+        .row.me .bubble {
+            background: var(--bubble-me);
+        }
+
+        /* the little bubble tails, like WeChat */
+        .bubble::after {
+            content: "";
+            position: absolute;
+            top: 13px;
+            width: 0;
+            height: 0;
+            border: 6px solid transparent;
+        }
+
+        .bot .bubble::after {
+            left: -11px;
+            border-right-color: var(--bubble-bot);
+        }
+
+        .me .bubble::after {
+            right: -11px;
+            border-left-color: var(--bubble-me);
+        }
+
+        .bubble.text {
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .bubble.text:empty::before,
+        .bubble.text.is-empty::before {
+            content: "（未识别到文字）";
+            color: #9a9a9a;
+        }
+
+        .bubble img {
+            display: block;
+            max-width: 100%;
+            max-height: 320px;
+            border-radius: 4px;
+        }
+
+        .meta {
+            margin: 5px 2px 0;
+            font-size: 11px;
+            color: #9a9a9a;
+        }
+
+        .meta .tag {
+            display: inline-block;
+            margin-right: 6px;
+            padding: 0 5px;
+            border: 1px solid #cfcfcf;
+            border-radius: 3px;
+            color: #7a7a7a;
+        }
+
+        .actions {
+            margin: 6px 2px 0;
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .actions button {
+            padding: 0;
+            border: 0;
+            background: none;
+            color: #576b95;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .actions button:hover {
+            text-decoration: underline;
+        }
+
+        .raw {
+            display: none;
+            margin-top: 6px;
+            padding: 8px 10px;
+            border-radius: 4px;
+            background: #f7f7f7;
+            color: #555;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+
+        .raw.show {
+            display: block;
+        }
+
+        .spinner {
+            display: inline-flex;
+            gap: 4px;
+            padding: 3px 0;
+        }
+
+        .spinner i {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #b9b9b9;
+            animation: bounce 1s infinite ease-in-out;
+        }
+
+        .spinner i:nth-child(2) {
+            animation-delay: .15s;
+        }
+
+        .spinner i:nth-child(3) {
+            animation-delay: .3s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: translateY(0);
+                opacity: .5;
+            }
+
+            40% {
+                transform: translateY(-4px);
+                opacity: 1;
+            }
+        }
+
+        /* ---- composer ---- */
+        .composer {
+            flex: none;
+            background: #f7f7f7;
+            border-top: 1px solid var(--line);
+            padding: 10px 14px 12px;
+        }
+
+        .tools {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tool {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            height: 38px;
+            padding: 0 15px;
+            border: 1px solid #d5d5d5;
+            border-radius: 999px;
+            background: #fff;
+            color: #333;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .tool:hover:not(:disabled) {
+            border-color: var(--wechat-green);
+            color: var(--wechat-green);
+        }
+
+        .tool.primary {
+            border-color: var(--wechat-green);
+            background: var(--wechat-green);
+            color: #fff;
+        }
+
+        .tool.primary:hover:not(:disabled) {
+            background: #06ad56;
+            color: #fff;
+        }
+
+        .tool:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        .tool svg {
+            width: 17px;
+            height: 17px;
+            fill: currentColor;
+        }
+
+        .hint {
+            margin-top: 9px;
+            font-size: 12px;
+            color: #8a8a8a;
+            line-height: 1.6;
+        }
+
+        kbd {
+            padding: 1px 5px;
+            border: 1px solid #d0d0d0;
+            border-bottom-width: 2px;
+            border-radius: 4px;
+            background: #fff;
+            font: inherit;
+            font-size: 11px;
+        }
+
+        .alert {
+            display: none;
+            margin-bottom: 9px;
+            padding: 8px 11px;
+            border-radius: 6px;
+            background: #fff4e5;
+            border: 1px solid #ffd8a8;
+            color: #8a5a00;
+            font-size: 12.5px;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 40px;
+            transform: translate(-50%, 12px);
+            padding: 9px 16px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, .78);
+            color: #fff;
+            font-size: 13px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .18s, transform .18s;
+            z-index: 9;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="phone">
+        <header class="titlebar">
+            <div class="t-avatar">图</div>
+            <div class="t-name">提取图片文字</div>
+            <div class="t-status"><span class="dot" id="dot"></span><span id="engine">正在检测识别引擎…</span></div>
+        </header>
+
+        <main class="chat" id="chat"></main>
+
+        <footer class="composer">
+            <div class="alert" id="alert"></div>
+            <div class="tools">
+                <button class="tool primary" id="btn-region" type="button" title="选择屏幕上的一个区域截图">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M3 7V5a2 2 0 0 1 2-2h2v2H5v2H3zm12-4h2a2 2 0 0 1 2 2v2h-2V5h-2V3zM5 15v2h2v2H5a2 2 0 0 1-2-2v-2h2zm14 0h2v2a2 2 0 0 1-2 2h-2v-2h2v-2zM8 8h8v8H8V8z" />
+                    </svg>
+                    区域截图
+                </button>
+                <button class="tool" id="btn-paste" type="button" title="从剪贴板粘贴图片">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M16 4h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3h8v1zm-1 2H9V4H7v14h10V6h-2v1a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V6z" />
+                    </svg>
+                    粘贴图片
+                </button>
+                <button class="tool" id="btn-file" type="button" title="选择本地图片文件">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 3l4 5h-3v6h-2V8H8l4-5zM5 18h14v2H5v-2z" />
+                    </svg>
+                    选择文件
+                </button>
+                <button class="tool" id="btn-clear" type="button">清空</button>
+            </div>
+            <div class="hint">
+                支持 <b>区域截图</b>、<kbd>Ctrl</kbd>+<kbd>V</kbd> 粘贴或拖拽图片到窗口，识别结果会以聊天气泡的形式出现在上方。
+                识别在本机离线完成，图片不会离开这台电脑。
+            </div>
+        </footer>
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <input type="file" id="file" accept="image/*" hidden>
+    <script src="chat.js"></script>
+</body>
+
+</html>

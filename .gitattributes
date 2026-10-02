@@ -1,0 +1,33 @@
+# 行尾与二进制处理。
+#
+# 为什么 .ps1 按二进制处理：Windows PowerShell 5.1 读取没有 UTF-8 BOM 的 .ps1
+# 会按 GBK 解码，脚本里的中文会变乱码、内嵌页面脚本会整段失效。所以这些脚本
+# 必须按字节原样保存，不能让 Git 做任何换行或编码转换（*.ps1、*.cs 声明为
+# binary，等同于关闭全部转换）。改脚本后请用 desktop\fix-bom.ps1 复查 BOM。
+
+* -text
+
+# 逐字节保存：带 BOM 的脚本，以及图片和其他二进制
+*.ps1 binary
+*.cs binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.ico binary
+*.exe binary
+*.dll binary
+*.pdb binary
+
+# 纯文本：统一存 LF，检出到 Windows 用 CRLF
+*.md text eol=crlf
+*.txt text eol=crlf
+*.yaml text eol=crlf
+*.yml text eol=crlf
+*.py text eol=lf
+*.html text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
