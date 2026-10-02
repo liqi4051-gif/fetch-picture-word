@@ -1,0 +1,7 @@
+interface:
+  display_name: "Publish to GitHub"
+  short_description: "Package a project and publish it to GitHub in one go"
+  brand_color: "#24292F"
+  default_prompt: "Use $publish-to-github to publish this project to my GitHub account."
+policy:
+  allow_implicit_invocation: false

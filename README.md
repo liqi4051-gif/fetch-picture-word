@@ -7,6 +7,8 @@
 图 ──▶ 图片里读出来的文字（左侧白色气泡）
 ```
 
+仓库里有两个可被 Agent 调用的 Skill：`skill/fetch-picture-word/`（本项目的 OCR 能力）和 `skill/publish-to-github/`（把写完的项目发布到 GitHub 的通用流程，见[第 8 节](#8-附带-skillpublish-to-github)）。
+
 ## 1. 项目解决什么问题
 
 日常最烦的几件事，这个项目一次性解决：
@@ -31,6 +33,7 @@
 | 自动放大预处理 | 识别前按规则放大图片（默认至少 3 倍且不窄于 700 px，上限 2600 px），这一步直接决定了中文小字能不能读对 |
 | 文本整理 | 自动修掉引擎在汉字之间插入的空格、中英文之间的空格、被读成汉字「一」的日期连字符（`2024 一 05 一 17` → `2024-05-17`），并按千分位/小数点规则重建数字分隔符（`1 ， 204 ， 338 · 00` → `1,204,338.00`）；`-NoCleanup` / `-Raw` 可关闭 |
 | 两种形态 | `desktop/` 装成软件双击即用；`skill/fetch-picture-word/` 是可被 Agent 调用的 Skill（本地服务 + 浏览器页面） |
+| 附带发布 Skill | `skill/publish-to-github/` 把写完的项目一站式发布到 GitHub（自检 → 提交 → 建仓 → 推送 → tag → Release），详见第 8 节 |
 
 ![桌面版界面](desktop/references/screenshot.png)
 
@@ -315,21 +318,43 @@ desktop/                              # 桌面软件（双击即用）
 ├── dist/                             # 构建产物（exe + app.ps1 + ocr.ps1 + README.txt + LICENSE.txt）
 └── references/screenshot.png         # 界面截图
 
-skill/fetch-picture-word/             # Agent 用的 Skill
-├── SKILL.md                          # Skill 定义（frontmatter: name / description）
-├── agents/openai.yaml                # Codex 风格展示元数据
-├── assets/                           # 聊天式前端（chat.html + chat.js，无构建步骤）
-├── scripts/
-│   ├── preview.py                    # 本地服务：页面 + /api/ocr
-│   └── ocr.ps1                       # Windows OCR 引擎封装（UTF-8 with BOM，勿去掉 BOM）
-└── references/                       # 自测用示例图片
+skill/                                # 两个可被 Agent 调用的 Skill
+├── fetch-picture-word/               #   本项目的 OCR 能力
+│   ├── SKILL.md                      #   Skill 定义（frontmatter: name / description）
+│   ├── agents/openai.yaml            #   Codex 风格展示元数据
+│   ├── assets/                       #   聊天式前端（chat.html + chat.js，无构建步骤）
+│   ├── scripts/
+│   │   ├── preview.py                #   本地服务：页面 + /api/ocr
+│   │   └── ocr.ps1                   #   Windows OCR 引擎封装（UTF-8 with BOM，勿去掉 BOM）
+│   └── references/                   #   自测用示例图片
+└── publish-to-github/                #   把写完的项目发布到 GitHub 的通用 Skill（见第 8 节）
+    ├── SKILL.md                      #   完整流程：自检 → 提交 → 建仓 → 推送 → tag → Release
+    ├── agents/openai.yaml            #   展示元数据
+    └── scripts/check-env.ps1         #   只读环境自检（git / gh / 代理 / 登录 / 身份 / 仓库）
 ```
 
 两份实现共用同一套 OCR 逻辑（`desktop/src/ocr.ps1` 与 `skill/.../scripts/ocr.ps1` 算法一致，桌面版把「词级拼装 + 中英文空格修正 + 数字分隔符重建」放在 C# 里跑）。
 
 桌面版为什么是 PowerShell 宿主、而不是纯 C#：`Windows.Media.Ocr` 是 WinRT 接口，而这台机器上只有 .NET Framework 4.0.30319 的 `csc.exe`，没有 Windows SDK、也没有 `dotnet` SDK，`csc` 无法引用 `.winmd` 投影；PowerShell 5.1 自带 `System.Runtime.WindowsRuntime`，可以直接调 WinRT。所以 exe 只负责无窗口拉起（图标、快捷方式、AppUserModelID），窗口和识别在 PowerShell 里跑——对用户来说仍然是「双击一个软件」。
 
-## 8. 已知限制
+## 8. 附带 Skill：publish-to-github
+
+这个仓库里还有第二个 Skill，和 OCR 无关，是做完本项目之后顺手沉淀下来的：**把刚写完的项目发布到 GitHub** 的完整流程。
+
+```powershell
+# 只读自检：git / gh / 代理 / 登录 / 身份 / 仓库状态 一次看清
+powershell -ExecutionPolicy Bypass -File skill\publish-to-github\scripts\check-env.ps1 -Repo <项目目录>
+```
+
+`check-env.ps1` 不做任何写操作（唯一网络访问是 gh 的令牌校验），输出末尾有 `problems=N` 便于判断。Skill 正文覆盖：装 Git / gh 的官方方式、代理环境变量（gh 不读 IE 系统代理）、`gh auth login` 浏览器授权、`.gitattributes` 保 BOM、本仓库署名的 `--local` 配置、首次提交、`gh repo create` + 推送后的核对命令、`git tag -a` + `gh release create`，以及一张 12 行的排错表（本机真实踩过的坑）。
+
+安装到 Agent 的方式与 `fetch-picture-word` 相同：
+
+```powershell
+Copy-Item -Recurse skill\publish-to-github "$env:USERPROFILE\.dsh\skills\"
+```
+
+## 9. 已知限制
 
 - **仅 Windows**：依赖系统自带的 `Windows.Media.Ocr`，且需要装好对应语言的 OCR 语言包（用 `-ListLanguages` 查看）。桌面版还要求 .NET Framework 4.x 与 PowerShell 5.1，Windows 10/11 都自带。
 - **网页版必须通过本地服务打开页面**：浏览器的区域截图（`getDisplayMedia`）和剪贴板图片读取只在 http(s) 来源下可用，直接双击 `assets/chat.html` 用不了。桌面版没有这个限制，区域截图由程序自己实现。
@@ -338,6 +363,6 @@ skill/fetch-picture-word/             # Agent 用的 Skill
 - **高 DPI 屏幕已适配**：`app.ps1` 启动时会调用 `SetProcessDpiAwarenessContext`；不这样做的话，高 DPI 机器上的 IE 内核会把整页按 200% 拉伸，底部输入框和提示行会被挤出窗口（本机 200% 缩放时踩到过）。
 - **所有 `.ps1` 必须保持 UTF-8 with BOM**：PowerShell 5.1 读取没有 BOM 的 `.ps1` 会按 GBK 解码，脚本里的中文会变乱码、内嵌页面脚本会整段失效。改完脚本跑一下 `desktop\fix-bom.ps1` 检查。
 
-## 9. 许可
+## 10. 许可
 
 [MIT](LICENSE)（Copyright © 2026 fetch-picture-word contributors）。识别引擎来自 Windows 系统组件，本项目只做调用与结果整理。
