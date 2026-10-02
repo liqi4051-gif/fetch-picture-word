@@ -13,6 +13,7 @@ description: Package a finished local project and publish it to GitHub end to en
 2. 不提交密钥：`.env`、`*.pem`、`id_rsa`、`token`、`credentials` 一律先查再提交。
 3. 用户提到密码、验证码、2FA、Token 时，**让用户自己在浏览器完成授权**，绝不要求用户把这些发到对话里。
 4. 每次 `git add` 前先看 `git status`，别把临时文件（`*.tmp`、草稿、日志）一起提交。
+5. 改**系统级/用户级持久配置**（环境变量、注册表、hosts、系统代理）前先说明副作用并拿到确认；能只在当前会话生效的，绝不写成持久化。
 
 ## When to use
 
@@ -68,9 +69,13 @@ gh --version
 原因：**gh 是 Go 写的，只读环境变量，不读 IE/系统代理设置。**
 
 ```powershell
-# 写入用户级（长期有效；写完后新开的终端才认）
-[Environment]::SetEnvironmentVariable('HTTPS_PROXY', 'http://127.0.0.1:7897', 'User')
-[Environment]::SetEnvironmentVariable('HTTP_PROXY',  'http://127.0.0.1:7897', 'User')
+# ✅ 只写在当前会话（关掉终端即失效，不污染系统）
+$env:HTTPS_PROXY = 'http://127.0.0.1:7897'
+$env:HTTP_PROXY  = 'http://127.0.0.1:7897'
+# 同一个终端里后续的 git / gh 都会走代理
+
+# 需要「一条命令自带代理」（比如从别的工具里调用）就写在一行里
+powershell -NoProfile -Command "$env:HTTPS_PROXY='http://127.0.0.1:7897'; gh auth status"
 
 # 验证：直连应超时、走代理应 200
 curl.exe -sS -o NUL -w "direct: %{http_code} in %{time_total}s`n" --max-time 15 --noproxy '*' https://github.com
@@ -78,6 +83,27 @@ curl.exe -sS -o NUL -w "proxy : %{http_code} in %{time_total}s`n" --max-time 15 
 ```
 
 ⚠️ 端口要按用户实际的代理软件调整。如果代理软件中途重启，登录会失败，重试即可。
+
+🚫 **不要擅自写成用户级/机器级持久变量**（`[Environment]::SetEnvironmentVariable(..., 'User')`）。这两个变量**所有新启动的程序都会读**：代理软件一关，凡是会读环境变量的软件（优酷、爱奇艺等视频客户端、部分 Qt/.NET/libcurl 程序）立刻全变成「没有网络」，用户会以为电脑被弄坏了，而且已经开着的进程要重启才恢复。
+
+> 真实事故（2026-10-02）：为了让 `gh auth login` 走通代理，把 `HTTP_PROXY`/`HTTPS_PROXY` 写成了用户级持久变量。几天后用户报「优酷、爱奇艺显示没有网络，其他软件正常，一开代理又好了」——正是这两个变量指向了没在监听的 `127.0.0.1:7897`。
+
+只有在用户**明确要求**且已听懂副作用时才持久化，并且必须连撤销命令一起给：
+
+```powershell
+# 加（用户级持久）
+[Environment]::SetEnvironmentVariable('HTTPS_PROXY', 'http://127.0.0.1:7897', 'User')
+[Environment]::SetEnvironmentVariable('HTTP_PROXY',  'http://127.0.0.1:7897', 'User')
+
+# 撤（传 $null 即删除）
+[Environment]::SetEnvironmentVariable('HTTPS_PROXY', $null, 'User')
+[Environment]::SetEnvironmentVariable('HTTP_PROXY',  $null, 'User')
+# 校验（两个都应为空）
+[Environment]::GetEnvironmentVariable('HTTP_PROXY','User')
+[Environment]::GetEnvironmentVariable('HTTPS_PROXY','User')
+```
+
+撤销后**已经在运行的软件仍带着旧值**：必须让用户把相关程序（含托盘图标、后台服务）彻底退出再打开，必要时注销/重启一次。
 
 ### 4. 登录 gh（由用户在浏览器完成授权）
 
@@ -231,6 +257,7 @@ gh release upload v0.1.0 <产物路径>
 | `Author identity unknown` | 没配 user.name/email | 步骤 4 的 `--local` 配置 |
 | `dial tcp … did not properly respond` | 直连 GitHub 不通 | 设 `HTTPS_PROXY`/`HTTP_PROXY` 后重试 |
 | `proxyconnect tcp: … actively refused` | 代理软件没开/端口变了 | 启动代理软件；用 `Get-NetTCPConnection -LocalPort <端口> -State Listen` 确认 |
+| 代理关着时优酷/爱奇艺等软件显示「没有网络」，其他软件正常 | 之前把 `HTTP_PROXY`/`HTTPS_PROXY` 写成了用户级持久变量 | 按「代理」一节删掉这两个变量，再让用户把这些软件（含托盘/后台进程）彻底退出重开 |
 | `gh: not logged into any GitHub hosts` | 未登录 | 步骤 4 登录，注意带上代理变量 |
 | `git push` 反复要密码 | 没执行 `gh auth setup-git` | 执行它，再 `git config --get-all credential.https://github.com.helper` 复核 |
 | 中文变乱码 / 脚本解析报错 | `.ps1` 的 UTF-8 BOM 丢了 | 补回 `EF BB BF`；`.gitattributes` 里把 `*.ps1` 设为 `binary` |
@@ -243,4 +270,5 @@ gh release upload v0.1.0 <产物路径>
 ## 收尾
 
 - 发布后把临时文件（登录日志、发布说明草稿、自检输出目录、`%TEMP%` 下自己建的中间文件）删掉。
+- 若过程中为了走代理设过**持久**环境变量或改过系统代理，收尾时恢复原状（除非用户明确要求保留），并主动告诉用户你改了什么。
 - 报给用户的结果要带上可核对的证据：仓库 URL、远端文件数、`main` 与 `origin/main` 是否同 SHA、tag 名、Release URL。
