@@ -346,7 +346,7 @@ skill/                                # 两个可被 Agent 调用的 Skill
 powershell -ExecutionPolicy Bypass -File skill\publish-to-github\scripts\check-env.ps1 -Repo <项目目录>
 ```
 
-`check-env.ps1` 不做任何写操作（唯一网络访问是 gh 的令牌校验），输出末尾有 `problems=N` 便于判断。Skill 正文覆盖：装 Git / gh 的官方方式、代理环境变量（gh 不读 IE 系统代理）、`gh auth login` 浏览器授权、`.gitattributes` 保 BOM、本仓库署名的 `--local` 配置、首次提交、`gh repo create` + 推送后的核对命令、`git tag -a` + `gh release create`，以及一张 12 行的排错表（本机真实踩过的坑）。
+`check-env.ps1` 不做任何写操作（唯一网络访问是 gh 的令牌校验），输出末尾有 `problems=N` 便于判断。本机实测：即使在一个**没设代理变量的新终端**里跑，它也能从注册表重建 PATH 找到 git / gh、并报告「本进程还没有代理变量 → 本次命令里显式带上 `$env:HTTPS_PROXY='http://127.0.0.1:7897'`」——记住 gh 走网络时**不看 IE 系统代理**。Skill 正文覆盖：装 Git / gh 的官方方式、代理环境变量（gh 不读 IE 系统代理）、`gh auth login` 浏览器授权、`.gitattributes` 保 BOM、本仓库署名的 `--local` 配置、首次提交、`gh repo create` + 推送后的核对命令、`git tag -a` + `gh release create`，以及一张 12 行的排错表（本机真实踩过的坑）。
 
 安装到 Agent 的方式与 `fetch-picture-word` 相同：
 
